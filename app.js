@@ -157,11 +157,9 @@ app.get("/user/following/", authenticateToken, async (request, response) => {
     SELECT
       name
     FROM
-      user LEFT JOIN follower ON user.user_id = follower.follower_user_id
+      follower LEFT JOIN user ON user.user_id = follower.follower_id
     WHERE 
-      user.user_id = follower.follower_user_id
-    GROUP BY 
-      follower.follower_user_id
+       follower.following_user_id = user.user_id
     ;`;
   const dbUser = await database.all(SelectUserQuery);
   response.send(dbUser);
@@ -174,7 +172,7 @@ app.get("/user/followers/", authenticateToken, async (request, response) => {
     SELECT
       name
     FROM
-      user LEFT JOIN follower ON user.user_id = follower.follower_user_id
+      user LEFT JOIN follower ON user.user_id = follower.following_user_id
     WHERE 
       user.user_id = follower.following_user_id
     ;`;
