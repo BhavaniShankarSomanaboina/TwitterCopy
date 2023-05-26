@@ -153,14 +153,20 @@ app.get("/user/tweets/feed/", authenticateToken, async (request, response) => {
 // User Following API 4
 
 app.get("/user/following/", authenticateToken, async (request, response) => {
+  const { username, password } = request.body;
+  const LoggedInUser = `
+        SELECT * FROM user WHERE user.username LIKE '${username}';
+    `;
+  const LoggerInUserId = await database.get(LoggedInUser);
+
   const SelectUserQuery = `
     SELECT
       name
-    FROM
-      follower LEFT JOIN user ON user.user_id = follower.follower_id
+    FROM 
+      follower INNER JOIN user on user.user_id = follower.follower_user_id
     WHERE 
-       follower.following_user_id = user.user_id
-    ;`;
+      follower.following_user_id = ${LoggerInUserId.user_id}
+     ;`;
   const dbUser = await database.all(SelectUserQuery);
   response.send(dbUser);
 });
@@ -168,14 +174,19 @@ app.get("/user/following/", authenticateToken, async (request, response) => {
 // Following User API 5
 
 app.get("/user/followers/", authenticateToken, async (request, response) => {
+  const { username, password } = request.body;
+  const LoggedInUser = `
+        SELECT * FROM user WHERE user.username LIKE '${username}';
+    `;
+  const LoggerInUserId = await database.get(LoggedInUser);
   const SelectUserQuery = `
-    SELECT
+   SELECT
       name
-    FROM
-      user LEFT JOIN follower ON user.user_id = follower.following_user_id
+    FROM 
+      follower INNER JOIN user on user.user_id = follower.following_user_id
     WHERE 
-      user.user_id = follower.following_user_id
-    ;`;
+      follower.follower_user_id = ${LoggerInUserId.user_id}
+     ;`;
   const dbUser = await database.all(SelectUserQuery);
   response.send(dbUser);
 });
@@ -193,10 +204,9 @@ app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
     FROM
       (tweet NATURAL JOIN like
       NATURAL JOIN reply) AS TweetLikeReply
-      LEFT JOIN follower ON TweetLikeReply.user_id = follower.follower_user_id
+      LEFT JOIN follower ON TweetLikeReply.user_id = follower.following_user_id
     WHERE 
-      TweetLikeReply.user_id = follower.follower_user_id
-      AND TweetLikeReply.tweet_id = '${tweetId}'
+      TweetLikeReply.tweet_id = '${tweetId}'
     GROUP BY 
         TweetLikeReply.tweet
     ;`;
@@ -296,14 +306,14 @@ app.get("/user/tweets/", authenticateToken, async (request, response) => {
   const SelectUserQuery = `
     SELECT
       tweet,
-      COUNT(user_id) AS likes,
-      COUNT(user_id) AS replies,
+      COUNT(user.user_id) AS likes,
+      COUNT(user.user_id) AS replies,
       date_time AS dateTime
     FROM
       (tweet NATURAL JOIN like) AS TweetLike
       LEFT JOIN reply ON TweetLike.user_id = reply.user_id
-    WHERE 
-      TweetLike.user_id = reply.user_id
+      NATURAL JOIN user
+   
     ;`;
   const dbUser = await database.all(SelectUserQuery);
   response.send(dbUser);
@@ -334,9 +344,9 @@ app.delete(
     SELECT
       *
     FROM 
-      user LEFT JOIN tweet ON user.user_id = tweet.user_id
+      user NATURAL JOIN tweet
     WHERE
-      tweet_id = '${tweetId}';
+      tweet.tweet_id = '${tweetId}';
     `;
     const CheckQuery = await database.get(checkTweetQuery);
     if (CheckQuery === undefined) {
